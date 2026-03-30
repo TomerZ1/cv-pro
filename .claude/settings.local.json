@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p backend/prompts backend/routers backend/services backend/templates backend/tests)",
+      "Bash(mkdir -p frontend/src/api frontend/src/hooks frontend/src/components frontend/src/pages frontend/src/styles)",
+      "Bash(mkdir -p docs .claude/commands)",
+      "Bash(mv /Users/tomerzalberg/Desktop/cv-pro/projects.md /Users/tomerzalberg/Desktop/cv-pro/backend/prompts/)",
+      "Bash(mv /Users/tomerzalberg/Desktop/cv-pro/skills.md /Users/tomerzalberg/Desktop/cv-pro/backend/prompts/)",
+      "Bash(mv /Users/tomerzalberg/Desktop/cv-pro/profile.md /Users/tomerzalberg/Desktop/cv-pro/backend/prompts/)",
+      "Bash(mv /Users/tomerzalberg/Desktop/cv-pro/achievements.md /Users/tomerzalberg/Desktop/cv-pro/backend/prompts/)",
+      "Bash(mv /Users/tomerzalberg/Desktop/cv-pro/bullet_regen.md /Users/tomerzalberg/Desktop/cv-pro/backend/prompts/)"
+    ]
+  }
+}
