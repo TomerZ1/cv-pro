@@ -9,7 +9,12 @@ from pydantic import BaseModel
 
 from services.claude_client import call_claude
 from services.prompt_engine import load_prompt
-from services.response_parser import parse_projects_response
+from services.response_parser import (
+    parse_projects_response,
+    parse_skills_response,
+    parse_profile_response,
+    parse_achievements_response,
+)
 
 
 # --- Pydantic models ---
@@ -75,6 +80,113 @@ class ProjectsResponse(BaseModel):
     suggestions: list[str] = []
 
 
+# --- Skills models (Tool 2) ---
+
+
+class SkillCategory(BaseModel):
+    """A single skill category with its items.
+
+    Attributes:
+        name: Category name (e.g. "Backend & Infrastructure").
+        items: List of skills in this category.
+    """
+
+    name: str
+    items: list[str]
+
+
+class RewrittenSkills(BaseModel):
+    """Rewritten skills organized into new categories.
+
+    Attributes:
+        categories: List of skill categories.
+        recommendations: Skills to consider adding (not in CV yet).
+    """
+
+    categories: list[SkillCategory]
+    recommendations: list[str] = []
+
+
+class SkillsResponse(BaseModel):
+    """Response from the skills rewriting tool.
+
+    Attributes:
+        original: Original skills data from the CV.
+        rewritten: Reorganized skills with new categories.
+    """
+
+    original: dict
+    rewritten: RewrittenSkills
+
+
+# --- Profile models (Tool 3) ---
+
+
+class ProfileVersion(BaseModel):
+    """One version of the profile/summary section.
+
+    Attributes:
+        label: Version label (e.g. "Experience-Led" or "Highlight Reel").
+        bullets: List of profile bullet strings.
+    """
+
+    label: str
+    bullets: list[str]
+
+
+class ProfileResponse(BaseModel):
+    """Response from the profile generator tool.
+
+    Attributes:
+        version_1: First profile version.
+        version_2: Second profile version.
+    """
+
+    version_1: ProfileVersion
+    version_2: ProfileVersion
+
+
+# --- Achievements models (Tool 4) ---
+
+
+class AchievementSuggestion(BaseModel):
+    """A single achievement transformation suggestion.
+
+    Attributes:
+        section: CV section (e.g. "projects", "education", "military").
+        project: Project/role identifier.
+        bullet_index: Zero-based index of the bullet.
+        original: Original bullet text.
+        suggested: Transformed achievement-focused bullet.
+        reasoning: Why this transformation was made.
+        impact_score: 1-5 achievement strength score.
+        impact_reason: Explanation of the impact score.
+        coach_question: Question to help user recall real metrics.
+        coach_field_label: Short label for the UI input field.
+    """
+
+    section: str
+    project: str = ""
+    bullet_index: int
+    original: str
+    suggested: str
+    reasoning: str
+    impact_score: int
+    impact_reason: str
+    coach_question: str
+    coach_field_label: str
+
+
+class AchievementsResponse(BaseModel):
+    """Response from the achievement transformer tool.
+
+    Attributes:
+        suggestions: List of achievement transformation suggestions.
+    """
+
+    suggestions: list[AchievementSuggestion]
+
+
 # --- Router ---
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
@@ -118,3 +230,115 @@ async def rewrite_projects(request: ToolRequest) -> ProjectsResponse:
         )
 
     return ProjectsResponse(**parsed)
+
+
+@router.post("/skills", response_model=SkillsResponse)
+async def rewrite_skills(request: ToolRequest) -> SkillsResponse:
+    """Reorganize skills section for the job description (Tool 2).
+
+    Loads the skills.md prompt, sends CV skills + JD to Claude,
+    and returns reorganized skill categories with recommendations.
+
+    Args:
+        request: ToolRequest with cv_data containing skills and jd_data.
+
+    Returns:
+        SkillsResponse with original and rewritten skills.
+
+    Raises:
+        HTTPException: On prompt loading errors (404) or parse errors (422).
+    """
+    try:
+        system_prompt, user_message = await load_prompt(
+            "skills", request.cv_data, request.jd_data
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    raw_response = await call_claude(system_prompt, user_message)
+
+    try:
+        parsed = parse_skills_response(raw_response)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Failed to parse Claude response: {e}",
+        )
+
+    return SkillsResponse(
+        original=request.cv_data.get("skills", {}),
+        rewritten=RewrittenSkills(**parsed),
+    )
+
+
+@router.post("/profile", response_model=ProfileResponse)
+async def generate_profile(request: ToolRequest) -> ProfileResponse:
+    """Generate profile/summary section with two versions (Tool 3).
+
+    Loads the profile.md prompt, sends full CV + JD to Claude,
+    and returns two profile versions with different angles.
+
+    Args:
+        request: ToolRequest with full cv_data and jd_data.
+
+    Returns:
+        ProfileResponse with version_1 and version_2.
+
+    Raises:
+        HTTPException: On prompt loading errors (404) or parse errors (422).
+    """
+    try:
+        system_prompt, user_message = await load_prompt(
+            "profile", request.cv_data, request.jd_data
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    raw_response = await call_claude(system_prompt, user_message)
+
+    try:
+        parsed = parse_profile_response(raw_response)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Failed to parse Claude response: {e}",
+        )
+
+    return ProfileResponse(**parsed)
+
+
+@router.post("/achievements", response_model=AchievementsResponse)
+async def transform_achievements(request: ToolRequest) -> AchievementsResponse:
+    """Cross-section achievement analysis and transformation (Tool 4).
+
+    Loads the achievements.md prompt, sends full CV + JD to Claude,
+    and returns suggestions for transforming duty-style bullets into
+    achievement-focused statements.
+
+    Args:
+        request: ToolRequest with full cv_data and jd_data.
+
+    Returns:
+        AchievementsResponse with transformation suggestions.
+
+    Raises:
+        HTTPException: On prompt loading errors (404) or parse errors (422).
+    """
+    try:
+        system_prompt, user_message = await load_prompt(
+            "achievements", request.cv_data, request.jd_data
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    raw_response = await call_claude(system_prompt, user_message)
+
+    try:
+        parsed = parse_achievements_response(raw_response)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Failed to parse Claude response: {e}",
+        )
+
+    return AchievementsResponse(**parsed)

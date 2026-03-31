@@ -8,6 +8,9 @@ import { Routes, Route } from "react-router-dom";
 import NavBar from "./components/NavBar";
 import InputPage from "./pages/InputPage";
 import ProjectsPage from "./pages/ProjectsPage";
+import SkillsPage from "./pages/SkillsPage";
+import ProfilePage from "./pages/ProfilePage";
+import AchievementsPage from "./pages/AchievementsPage";
 
 /**
  * @typedef {Object} AppState
@@ -153,7 +156,45 @@ export default function App() {
               />
             }
           />
-          {/* Phase 1C routes will be added here */}
+          <Route
+            path="/skills"
+            element={
+              <SkillsPage
+                cvData={state.cvData}
+                jdData={state.jdData}
+                results={state.results.skills}
+                loading={state.loading.skills}
+                error={state.errors.skills}
+                dispatch={dispatch}
+              />
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProfilePage
+                cvData={state.cvData}
+                jdData={state.jdData}
+                results={state.results.profile}
+                loading={state.loading.profile}
+                error={state.errors.profile}
+                dispatch={dispatch}
+              />
+            }
+          />
+          <Route
+            path="/achievements"
+            element={
+              <AchievementsPage
+                cvData={state.cvData}
+                jdData={state.jdData}
+                results={state.results.achievements}
+                loading={state.loading.achievements}
+                error={state.errors.achievements}
+                dispatch={dispatch}
+              />
+            }
+          />
         </Routes>
       </main>
     </div>
