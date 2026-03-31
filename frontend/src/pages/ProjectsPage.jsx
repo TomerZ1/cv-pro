@@ -1,6 +1,7 @@
 /**
  * Projects page — paste your projects section, run the rewriter, see results.
- * Includes per-bullet re-run functionality.
+ * Claude returns Version A (Tasks & Process) and Version B (Impact & Outcomes)
+ * bullets for each project found in the pasted text.
  *
  * @param {Object} props
  * @param {Object|null} props.jdData - Parsed JD data.
@@ -15,7 +16,8 @@ import { useState } from "react";
 import ProjectCard from "../components/ProjectCard";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
-import { runProjectsTool, regenerateBullet } from "../api/client";
+import PromptDebugBox from "../components/PromptDebugBox";
+import { runProjectsTool } from "../api/client";
 
 export default function ProjectsPage({
   jdData,
@@ -26,21 +28,17 @@ export default function ProjectsPage({
   dispatch,
 }) {
   const [text, setText] = useState(sectionText);
-  const [regeneratingBullets, setRegeneratingBullets] = useState(new Set());
 
   /**
    * Save section text to state and run the projects tool.
    */
   async function handleRun() {
-    if (!text.trim()) return;
-    if (!jdData) return;
+    if (!text.trim() || !jdData) return;
 
-    // Save the section text to state
     dispatch({ type: "SET_SECTION_TEXT", payload: { key: "projects", value: text } });
     dispatch({ type: "SET_LOADING", payload: { key: "projects", value: true } });
     dispatch({ type: "SET_ERROR", payload: { key: "projects", message: null } });
 
-    // Send raw text as cv_data — Claude reads it directly from the prompt
     const cvData = { projects_text: text.trim() };
 
     try {
@@ -53,56 +51,6 @@ export default function ProjectsPage({
       });
     } finally {
       dispatch({ type: "SET_LOADING", payload: { key: "projects", value: false } });
-    }
-  }
-
-  /**
-   * Regenerate a single bullet.
-   *
-   * @param {string} projectKey - Project identifier.
-   * @param {number} bulletIndex - Bullet index.
-   * @param {string} angle - Requested angle.
-   */
-  async function handleRegenerate(projectKey, bulletIndex, angle) {
-    const regenKey = `${projectKey}-${bulletIndex}`;
-    setRegeneratingBullets((prev) => new Set(prev).add(regenKey));
-
-    try {
-      const project = results.projects[projectKey];
-      const bullet = project.bullets[bulletIndex];
-
-      const response = await regenerateBullet({
-        section: "projects",
-        project: projectKey,
-        bullet_index: bulletIndex,
-        current_bullet: bullet.original,
-        other_bullets: project.bullets
-          .filter((_, i) => i !== bulletIndex)
-          .map((b) => b.original),
-        angle,
-        cv_data: { projects_text: text.trim() },
-        jd_data: jdData,
-      });
-
-      dispatch({
-        type: "UPDATE_BULLET",
-        payload: {
-          projectKey,
-          bulletIndex,
-          newVariation: { angle, text: response.new_bullet },
-        },
-      });
-    } catch (err) {
-      dispatch({
-        type: "SET_ERROR",
-        payload: { key: "projects", message: `Regen failed: ${err.message}` },
-      });
-    } finally {
-      setRegeneratingBullets((prev) => {
-        const next = new Set(prev);
-        next.delete(regenKey);
-        return next;
-      });
     }
   }
 
@@ -150,16 +98,12 @@ export default function ProjectsPage({
 
       {loading && <LoadingSpinner message="Rewriting project bullets..." />}
 
+      {results && !loading && <PromptDebugBox debug={results.debug} />}
+
       {results && !loading && (
-        <div className="space-y-6">
-          {Object.entries(results.projects).map(([key, project]) => (
-            <ProjectCard
-              key={key}
-              projectKey={key}
-              project={project}
-              onRegenerate={handleRegenerate}
-              regeneratingBullets={regeneratingBullets}
-            />
+        <div className="space-y-6 mt-6">
+          {results.projects.map((project, i) => (
+            <ProjectCard key={i} project={project} />
           ))}
 
           {results.suggestions && results.suggestions.length > 0 && (

@@ -9,11 +9,11 @@ import json
 import re
 
 
-def parse_projects_response(raw: str, original_projects: dict) -> dict:
+def parse_projects_response(raw: str) -> dict:
     """Parse Tool 1 (Projects) response — markdown with ### headings and Version A/B blocks.
 
     Claude outputs:
-        ### ProjectTitle | Org
+        ### ProjectTitle | Org | Period
         Version A — Tasks & Process:
         - bullet1
         - bullet2
@@ -24,20 +24,16 @@ def parse_projects_response(raw: str, original_projects: dict) -> dict:
         ### Suggestions for improvement
         - suggestion1
 
-    We map Version A → "tech" angle, Version B → "impact" angle, and pair
-    each bullet with its original from the input.
-
     Args:
         raw: Raw text response from Claude.
-        original_projects: Dict of {key: {title, bullets}} from the user's input.
 
     Returns:
-        Dict with {projects: {key: {title, bullets: [{original, variations}]}}, suggestions: []}.
+        Dict with {projects: [{title, version_a: [...], version_b: [...]}], suggestions: []}.
 
     Raises:
-        ValueError: If the response can't be parsed into the expected structure.
+        ValueError: If no projects could be parsed from the response.
     """
-    result = {"projects": {}, "suggestions": []}
+    result = {"projects": [], "suggestions": []}
 
     # Split into sections by ### headers
     sections = re.split(r"^###\s+", raw, flags=re.MULTILINE)
@@ -49,24 +45,12 @@ def parse_projects_response(raw: str, original_projects: dict) -> dict:
         # Check if this is the suggestions section
         first_line = section.split("\n")[0].strip().lower()
         if "suggestion" in first_line:
-            # Extract suggestion bullets
             suggestion_bullets = _extract_bullets(section)
             result["suggestions"] = suggestion_bullets
             continue
 
         # Extract project title from first line
         title_line = section.split("\n")[0].strip()
-
-        # Match this section to an original project by fuzzy title matching
-        matched_key = _match_project_key(title_line, original_projects)
-        if not matched_key:
-            continue
-
-        original = original_projects[matched_key]
-
-        # Split into Version A and Version B blocks
-        version_a_bullets = []
-        version_b_bullets = []
 
         # Find Version A and Version B markers
         version_a_match = re.search(
@@ -76,33 +60,24 @@ def parse_projects_response(raw: str, original_projects: dict) -> dict:
             r"Version B[^:]*:(.*?)(?=---|###|$)", section, re.DOTALL | re.IGNORECASE
         )
 
+        version_a_bullets = []
+        version_b_bullets = []
+
         if version_a_match:
             version_a_bullets = _extract_bullets(version_a_match.group(1))
         if version_b_match:
             version_b_bullets = _extract_bullets(version_b_match.group(1))
 
-        # Pair original bullets with their variations
-        bullets = []
-        for i, orig_bullet in enumerate(original["bullets"]):
-            variations = []
-
-            # Version A bullet → "tech" angle
-            if i < len(version_a_bullets):
-                variations.append({"angle": "tech", "text": version_a_bullets[i]})
-
-            # Version B bullet → "impact" angle
-            if i < len(version_b_bullets):
-                variations.append({"angle": "impact", "text": version_b_bullets[i]})
-
-            bullets.append({
-                "original": orig_bullet,
-                "variations": variations,
+        # Only add if we found at least some bullets
+        if version_a_bullets or version_b_bullets:
+            result["projects"].append({
+                "title": title_line,
+                "version_a": version_a_bullets,
+                "version_b": version_b_bullets,
             })
 
-        result["projects"][matched_key] = {
-            "title": original["title"],
-            "bullets": bullets,
-        }
+    if not result["projects"]:
+        raise ValueError("No projects could be parsed from Claude response")
 
     return result
 
@@ -319,43 +294,3 @@ def _clean_bullet_prefix(line: str) -> str:
     return ""
 
 
-def _match_project_key(title_line: str, original_projects: dict) -> str | None:
-    """Match a Claude-generated project title back to an original project key.
-
-    Uses case-insensitive substring matching since Claude may slightly
-    modify the title formatting.
-
-    Args:
-        title_line: Project title line from Claude's response.
-        original_projects: Dict of {key: {title, bullets}} from user input.
-
-    Returns:
-        The matching project key, or None if no match found.
-    """
-    title_lower = title_line.lower()
-
-    for key, project in original_projects.items():
-        # Check if the original title appears in Claude's title line
-        if project["title"].lower() in title_lower:
-            return key
-        # Also check if the key itself appears
-        if key.lower() in title_lower:
-            return key
-
-    # Fallback: check for partial word overlap
-    title_words = set(title_lower.split())
-    best_match = None
-    best_overlap = 0
-
-    for key, project in original_projects.items():
-        project_words = set(project["title"].lower().split())
-        overlap = len(title_words & project_words)
-        if overlap > best_overlap:
-            best_overlap = overlap
-            best_match = key
-
-    # Require at least 2 word overlap to avoid false matches
-    if best_overlap >= 2:
-        return best_match
-
-    return None

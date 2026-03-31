@@ -64,19 +64,6 @@ export async function runProjectsTool(cvData, jdData) {
 }
 
 /**
- * Regenerate a single bullet with a specific angle.
- *
- * @param {Object} payload - Regeneration request with section, project, bullet_index, etc.
- * @returns {Promise<{new_bullet: string}>} The regenerated bullet.
- */
-export async function regenerateBullet(payload) {
-  return request("/api/regenerate-bullet", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-/**
  * Run the Skills rewriting tool (Tool 2).
  *
  * @param {Object} cvData - Structured CV data.

@@ -14,6 +14,7 @@ import { useState } from "react";
 import SkillsEditor from "../components/SkillsEditor";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
+import PromptDebugBox from "../components/PromptDebugBox";
 import { runSkillsTool } from "../api/client";
 
 export default function SkillsPage({
@@ -95,8 +96,15 @@ export default function SkillsPage({
 
       {loading && <LoadingSpinner message="Reorganizing skills..." />}
 
+      {results && !loading && <PromptDebugBox debug={results.debug} />}
+
       {results && !loading && (
-        <SkillsEditor original={results.original} rewritten={results.rewritten} />
+        <div className="mt-6">
+          <SkillsEditor
+            categories={results.categories}
+            recommendations={results.recommendations}
+          />
+        </div>
       )}
     </div>
   );

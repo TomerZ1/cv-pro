@@ -99,39 +99,6 @@ function reducer(state, action) {
         errors: { ...state.errors, [action.payload.key]: action.payload.message },
       };
 
-    case "UPDATE_BULLET": {
-      // Add a new variation to a specific bullet in the projects results
-      const { projectKey, bulletIndex, newVariation } = action.payload;
-      const currentResults = state.results.projects;
-
-      if (!currentResults?.projects?.[projectKey]) return state;
-
-      const updatedBullets = [...currentResults.projects[projectKey].bullets];
-      const bullet = updatedBullets[bulletIndex];
-
-      updatedBullets[bulletIndex] = {
-        ...bullet,
-        variations: [newVariation, ...bullet.variations],
-      };
-
-      return {
-        ...state,
-        results: {
-          ...state.results,
-          projects: {
-            ...currentResults,
-            projects: {
-              ...currentResults.projects,
-              [projectKey]: {
-                ...currentResults.projects[projectKey],
-                bullets: updatedBullets,
-              },
-            },
-          },
-        },
-      };
-    }
-
     default:
       return state;
   }

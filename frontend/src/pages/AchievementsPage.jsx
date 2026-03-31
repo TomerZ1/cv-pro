@@ -15,6 +15,7 @@ import { useState } from "react";
 import AchievementList from "../components/AchievementList";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
+import PromptDebugBox from "../components/PromptDebugBox";
 import { runAchievementsTool } from "../api/client";
 
 export default function AchievementsPage({
@@ -96,8 +97,12 @@ export default function AchievementsPage({
 
       {loading && <LoadingSpinner message="Analyzing achievements..." />}
 
+      {results && !loading && <PromptDebugBox debug={results.debug} />}
+
       {results && !loading && (
-        <AchievementList suggestions={results.suggestions} />
+        <div className="mt-6">
+          <AchievementList suggestions={results.suggestions} />
+        </div>
       )}
     </div>
   );

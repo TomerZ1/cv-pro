@@ -15,6 +15,7 @@ import { useState } from "react";
 import ProfileEditor from "../components/ProfileEditor";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
+import PromptDebugBox from "../components/PromptDebugBox";
 import { runProfileTool } from "../api/client";
 
 export default function ProfilePage({
@@ -96,8 +97,12 @@ export default function ProfilePage({
 
       {loading && <LoadingSpinner message="Generating profile versions..." />}
 
+      {results && !loading && <PromptDebugBox debug={results.debug} />}
+
       {results && !loading && (
-        <ProfileEditor version1={results.version_1} version2={results.version_2} />
+        <div className="mt-6">
+          <ProfileEditor version1={results.version_1} version2={results.version_2} />
+        </div>
       )}
     </div>
   );
