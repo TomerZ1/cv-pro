@@ -11,6 +11,8 @@
  */
 
 import SkillsEditor from "../components/SkillsEditor";
+import LoadingSpinner from "../components/LoadingSpinner";
+import ErrorMessage from "../components/ErrorMessage";
 import { runSkillsTool } from "../api/client";
 
 export default function SkillsPage({
@@ -70,18 +72,9 @@ export default function SkillsPage({
         </button>
       </div>
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <ErrorMessage message={error} onRetry={handleRun} />}
 
-      {loading && (
-        <div className="text-center py-12">
-          <div className="animate-spin text-4xl text-indigo-500 mb-3">&#8635;</div>
-          <p className="text-gray-500">Reorganizing skills...</p>
-        </div>
-      )}
+      {loading && <LoadingSpinner message="Reorganizing skills..." />}
 
       {results && !loading && (
         <SkillsEditor original={results.original} rewritten={results.rewritten} />

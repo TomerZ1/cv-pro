@@ -13,6 +13,8 @@
 
 import { useState } from "react";
 import ProjectCard from "../components/ProjectCard";
+import LoadingSpinner from "../components/LoadingSpinner";
+import ErrorMessage from "../components/ErrorMessage";
 import { runProjectsTool, regenerateBullet } from "../api/client";
 
 export default function ProjectsPage({
@@ -128,20 +130,9 @@ export default function ProjectsPage({
         </button>
       </div>
 
-      {/* Error message */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <ErrorMessage message={error} onRetry={handleRun} />}
 
-      {/* Loading state */}
-      {loading && (
-        <div className="text-center py-12">
-          <div className="animate-spin text-4xl text-indigo-500 mb-3">&#8635;</div>
-          <p className="text-gray-500">Rewriting project bullets...</p>
-        </div>
-      )}
+      {loading && <LoadingSpinner message="Rewriting project bullets..." />}
 
       {/* Results */}
       {results && !loading && (

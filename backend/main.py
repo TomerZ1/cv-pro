@@ -4,9 +4,14 @@ Sets up CORS, includes routers, and provides a health check endpoint.
 Run with: uvicorn main:app --reload
 """
 
+import logging
+
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 from config import settings
 from routers.cv import router as cv_router
@@ -36,6 +41,27 @@ app.add_middleware(
 app.include_router(cv_router)
 app.include_router(tools_router)
 app.include_router(regenerate_router)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch-all handler for unhandled exceptions.
+
+    Logs the error and returns a generic 500 response so the frontend
+    always gets a JSON error instead of an HTML error page.
+
+    Args:
+        request: The incoming request.
+        exc: The unhandled exception.
+
+    Returns:
+        JSONResponse with 500 status and error detail.
+    """
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. Please try again."},
+    )
 
 
 @app.get("/health")
