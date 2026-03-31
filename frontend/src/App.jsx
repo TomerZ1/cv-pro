@@ -1,6 +1,9 @@
 /**
  * Root application component.
  * Manages global state with useReducer, renders NavBar and routes.
+ *
+ * State stores raw section texts (pasted from CV) and JD data.
+ * Each tool page has its own input textarea for that section.
  */
 
 import { useReducer } from "react";
@@ -14,9 +17,9 @@ import AchievementsPage from "./pages/AchievementsPage";
 
 /**
  * @typedef {Object} AppState
- * @property {Object|null} cvData - Structured CV data from input boxes.
  * @property {Object|null} jdData - Parsed JD data {raw_text, keywords}.
  * @property {string} jdText - Raw JD text for re-editing.
+ * @property {Object} sectionTexts - Raw pasted CV text per section.
  * @property {Object} results - Tool results keyed by tool name.
  * @property {Object} loading - Loading flags keyed by tool name.
  * @property {Object} errors - Error messages keyed by tool name.
@@ -24,9 +27,14 @@ import AchievementsPage from "./pages/AchievementsPage";
 
 /** @type {AppState} */
 const initialState = {
-  cvData: null,
   jdData: null,
   jdText: "",
+  sectionTexts: {
+    projects: "",
+    skills: "",
+    profile: "",
+    achievements: "",
+  },
   results: {
     projects: null,
     skills: null,
@@ -57,14 +65,21 @@ const initialState = {
  */
 function reducer(state, action) {
   switch (action.type) {
-    case "SET_CV_DATA":
-      return { ...state, cvData: action.payload };
-
     case "SET_JD_DATA":
       return { ...state, jdData: action.payload };
 
     case "SET_JD_TEXT":
       return { ...state, jdText: action.payload };
+
+    case "SET_SECTION_TEXT":
+      // Store raw pasted CV text for a specific section
+      return {
+        ...state,
+        sectionTexts: {
+          ...state.sectionTexts,
+          [action.payload.key]: action.payload.value,
+        },
+      };
 
     case "SET_LOADING":
       return {
@@ -94,7 +109,6 @@ function reducer(state, action) {
       const updatedBullets = [...currentResults.projects[projectKey].bullets];
       const bullet = updatedBullets[bulletIndex];
 
-      // Add the new variation to the front of the list
       updatedBullets[bulletIndex] = {
         ...bullet,
         variations: [newVariation, ...bullet.variations],
@@ -130,7 +144,6 @@ export default function App() {
     <div className="min-h-screen bg-gray-50">
       <NavBar />
 
-      {/* Main content area */}
       <main className="max-w-5xl mx-auto px-4 py-8">
         <Routes>
           <Route
@@ -138,7 +151,7 @@ export default function App() {
             element={
               <InputPage
                 dispatch={dispatch}
-                cvData={state.cvData}
+                jdData={state.jdData}
                 jdText={state.jdText}
               />
             }
@@ -147,8 +160,8 @@ export default function App() {
             path="/projects"
             element={
               <ProjectsPage
-                cvData={state.cvData}
                 jdData={state.jdData}
+                sectionText={state.sectionTexts.projects}
                 results={state.results.projects}
                 loading={state.loading.projects}
                 error={state.errors.projects}
@@ -160,8 +173,8 @@ export default function App() {
             path="/skills"
             element={
               <SkillsPage
-                cvData={state.cvData}
                 jdData={state.jdData}
+                sectionText={state.sectionTexts.skills}
                 results={state.results.skills}
                 loading={state.loading.skills}
                 error={state.errors.skills}
@@ -173,8 +186,8 @@ export default function App() {
             path="/profile"
             element={
               <ProfilePage
-                cvData={state.cvData}
                 jdData={state.jdData}
+                sectionText={state.sectionTexts.profile}
                 results={state.results.profile}
                 loading={state.loading.profile}
                 error={state.errors.profile}
@@ -186,8 +199,8 @@ export default function App() {
             path="/achievements"
             element={
               <AchievementsPage
-                cvData={state.cvData}
                 jdData={state.jdData}
+                sectionText={state.sectionTexts.achievements}
                 results={state.results.achievements}
                 loading={state.loading.achievements}
                 error={state.errors.achievements}

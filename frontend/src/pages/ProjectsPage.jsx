@@ -1,14 +1,14 @@
 /**
- * Projects page — runs the Project Bullet Rewriter (Tool 1) and displays results.
+ * Projects page — paste your projects section, run the rewriter, see results.
  * Includes per-bullet re-run functionality.
  *
  * @param {Object} props
- * @param {Object|null} props.cvData - Structured CV data from input.
- * @param {Object|null} props.jdData - Parsed JD data with raw_text and keywords.
- * @param {Object|null} props.results - Projects tool results from state.
- * @param {boolean} props.loading - Whether the tool is currently running.
- * @param {string|null} props.error - Error message if the tool failed.
- * @param {Function} props.dispatch - App state dispatch function.
+ * @param {Object|null} props.jdData - Parsed JD data.
+ * @param {string} props.sectionText - Raw pasted projects text.
+ * @param {Object|null} props.results - Projects tool results.
+ * @param {boolean} props.loading - Whether the tool is running.
+ * @param {string|null} props.error - Error message if failed.
+ * @param {Function} props.dispatch - App state dispatch.
  */
 
 import { useState } from "react";
@@ -18,32 +18,30 @@ import ErrorMessage from "../components/ErrorMessage";
 import { runProjectsTool, regenerateBullet } from "../api/client";
 
 export default function ProjectsPage({
-  cvData,
   jdData,
+  sectionText,
   results,
   loading,
   error,
   dispatch,
 }) {
-  // Track which bullets are currently regenerating
+  const [text, setText] = useState(sectionText);
   const [regeneratingBullets, setRegeneratingBullets] = useState(new Set());
 
-  // Guard: need input data first
-  if (!cvData || !jdData) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <p className="text-lg">Please input your CV and Job Description first.</p>
-        <p className="text-sm mt-1">Go to the Input page to get started.</p>
-      </div>
-    );
-  }
-
   /**
-   * Run the projects tool and store results.
+   * Save section text to state and run the projects tool.
    */
   async function handleRun() {
+    if (!text.trim()) return;
+    if (!jdData) return;
+
+    // Save the section text to state
+    dispatch({ type: "SET_SECTION_TEXT", payload: { key: "projects", value: text } });
     dispatch({ type: "SET_LOADING", payload: { key: "projects", value: true } });
     dispatch({ type: "SET_ERROR", payload: { key: "projects", message: null } });
+
+    // Send raw text as cv_data — Claude reads it directly from the prompt
+    const cvData = { projects_text: text.trim() };
 
     try {
       const data = await runProjectsTool(cvData, jdData);
@@ -59,10 +57,10 @@ export default function ProjectsPage({
   }
 
   /**
-   * Regenerate a single bullet with the given angle.
+   * Regenerate a single bullet.
    *
    * @param {string} projectKey - Project identifier.
-   * @param {number} bulletIndex - Zero-based bullet index.
+   * @param {number} bulletIndex - Bullet index.
    * @param {string} angle - Requested angle.
    */
   async function handleRegenerate(projectKey, bulletIndex, angle) {
@@ -82,11 +80,10 @@ export default function ProjectsPage({
           .filter((_, i) => i !== bulletIndex)
           .map((b) => b.original),
         angle,
-        cv_data: cvData,
+        cv_data: { projects_text: text.trim() },
         jd_data: jdData,
       });
 
-      // Update the bullet's variations with the new one
       dispatch({
         type: "UPDATE_BULLET",
         payload: {
@@ -115,13 +112,12 @@ export default function ProjectsPage({
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Project Bullet Rewriter</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Rewrites each project bullet with angle variations tailored to the JD.
+            Paste your projects section below, then click Run.
           </p>
         </div>
-
         <button
           onClick={handleRun}
-          disabled={loading}
+          disabled={loading || !text.trim() || !jdData}
           className="px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg
             hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed
             transition-colors shadow-sm"
@@ -130,11 +126,30 @@ export default function ProjectsPage({
         </button>
       </div>
 
+      {/* Section input */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Projects (paste from your CV)
+        </label>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={"ThinkRoom | Full Stack\n• Built a real-time tutoring platform using React and Python...\n• Implemented WebSocket-based live collaboration...\n\nSymNMF Clustering | Tel-Aviv University\n• Developed a clustering algorithm..."}
+          rows={8}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+            focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+        {!jdData && (
+          <p className="text-xs text-amber-600 mt-2">
+            Please save a Job Description on the Input page first.
+          </p>
+        )}
+      </div>
+
       {error && <ErrorMessage message={error} onRetry={handleRun} />}
 
       {loading && <LoadingSpinner message="Rewriting project bullets..." />}
 
-      {/* Results */}
       {results && !loading && (
         <div className="space-y-6">
           {Object.entries(results.projects).map(([key, project]) => (
@@ -147,7 +162,6 @@ export default function ProjectsPage({
             />
           ))}
 
-          {/* Suggestions section */}
           {results.suggestions && results.suggestions.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
               <h3 className="font-semibold text-amber-800 mb-2">Suggestions</h3>
