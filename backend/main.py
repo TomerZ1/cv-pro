@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from routers.cv import router as cv_router
+from routers.tools import router as tools_router
+from routers.regenerate import router as regenerate_router
 
 # Create the FastAPI application
 app = FastAPI(
@@ -32,6 +34,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(cv_router)
+app.include_router(tools_router)
+app.include_router(regenerate_router)
 
 
 @app.get("/health")
